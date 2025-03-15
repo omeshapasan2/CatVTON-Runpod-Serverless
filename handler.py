@@ -8,11 +8,11 @@ from PIL import Image
 import gradio as gr
 from tempfile import NamedTemporaryFile
 
-# Import from the CatVTON repo.
-# Assuming app.py exports these or similar
-import sys
-sys.path.append("/workspace")
-from app import CatVTONInference
+# Import the CatVTON app
+spec = importlib.util.spec_from_file_location("app", "/workspace/app.py")
+app_module = importlib.util.module_from_spec(spec)
+sys.modules["app"] = app_module
+spec.loader.exec_module(app_module)
 
 # Initialize the model
 model = None
@@ -20,7 +20,20 @@ model = None
 def init_model():
     global model
     if model is None:
-        model = CatVTONInference()
+        print("Initializing CatVTON model...")
+        # Create an instance of the main app class
+        # This might need to be adjusted based on how the app.py file is structured
+        try:
+            if hasattr(app_module, "CatVTONInference"):
+                model = app_module.CatVTONInference()
+            else:
+                # If there's no specific class, try to get the model from app variables
+                model = app_module
+            print("Model initialized successfully")
+        except Exception as e:
+            print(f"Error initializing model: {str(e)}")
+            print(traceback.format_exc())
+            raise
     return model
 
 def create_blank_white_png_like(image_bytes):
