@@ -17,5 +17,7 @@ COPY handler.py /workspace/handler.py
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
+ENV HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
+
 # Define the entry point
 CMD ["python", "-u", "/workspace/handler.py"]
