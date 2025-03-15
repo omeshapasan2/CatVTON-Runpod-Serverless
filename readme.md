@@ -1,4 +1,4 @@
-# CatVTON RunPod Serverless Worker ...
+# CatVTON RunPod Serverless Worker ..
 
 This repository contains a RunPod serverless worker for the [CatVTON](https://huggingface.co/zhengchong/CatVTON) virtual try-on model by zhengchong. This worker allows you to run the CatVTON model on RunPod's serverless infrastructure.
 
