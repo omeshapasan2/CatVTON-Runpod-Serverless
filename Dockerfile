@@ -27,7 +27,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy the model handler code
 COPY handler.py .
-COPY rp-handler.py .
+COPY rp_handler.py .
 
 # Add the runpod serverless worker template
 RUN mkdir -p /app/inputs /app/outputs /app/cache
