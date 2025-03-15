@@ -8,7 +8,7 @@ from PIL import Image
 import gradio as gr
 from tempfile import NamedTemporaryFile
 
-# Import from the CatVTON repo
+# Import from the CatVTON repo.
 # Assuming app.py exports these or similar
 import sys
 sys.path.append("/workspace")
