@@ -2,7 +2,7 @@ python3 runpod_catvton_client.py \
   --person "person_image.jpg" \
   --garment "garment_image.jpg" \
   --output "result.png" \
-  --endpoint "0skuy0uogc58kf" \
+  --endpoint "0wgf5hzcv3pgcs" \
   --api-key "rpa_YUKU0OP23UN69MBQVHMA7TQ3S2IVI0SU4MM8ZYBX6qmeag" \
   --cloth-type "upper"
 
@@ -11,5 +11,5 @@ python3 runpod_catvton_client.py \
   --person "person.jpg" \
   --garment "garment.jpg" \
   --output "result.png" \
-  --endpoint "0skuy0uogc58kf" \
+  --endpoint "0wgf5hzcv3pgcs" \
   --api-key "rpa_YUKU0OP23UN69MBQVHMA7TQ3S2IVI0SU4MM8ZYBX6qmeag"
