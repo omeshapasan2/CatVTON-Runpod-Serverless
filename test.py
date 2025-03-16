@@ -7,7 +7,7 @@ from PIL import Image
 import io
 
 class CatVTONClient:
-    def __init__(self, endpoint_id="v28ijazx0pm81l", api_key="rpa_YUKU0OP23UN69MBQVHMA7TQ3S2IVI0SU4MM8ZYBX6qmeag"):
+    def __init__(self, endpoint_id="Replace_with_your_endpoint_id", api_key="Replace_with_your_runpod_api_key"):
         """
         Initialize the CatVTON client.
         
