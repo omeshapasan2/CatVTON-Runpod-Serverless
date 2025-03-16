@@ -1,5 +1,8 @@
 FROM timpietruskyblibla/runpod-worker-comfy:3.6.0-base
 
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+
 # Install dependencies for CatVTON including unzip
 WORKDIR /workspace
 RUN apt-get update && apt-get install -y \
@@ -10,8 +13,11 @@ RUN apt-get update && apt-get install -y \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and extract ComfyUI-CatVTON
+# Create directory for custom nodes if it doesn't exist
 WORKDIR /workspace/ComfyUI/custom_nodes
+RUN mkdir -p /workspace/ComfyUI/custom_nodes
+
+# Download and extract ComfyUI-CatVTON
 RUN wget https://github.com/Zheng-Chong/CatVTON/releases/download/ComfyUI/ComfyUI-CatVTON.zip && \
     unzip ComfyUI-CatVTON.zip && \
     rm ComfyUI-CatVTON.zip
@@ -27,9 +33,26 @@ RUN wget https://github.com/Zheng-Chong/CatVTON/releases/download/ComfyUI/catvto
 WORKDIR /workspace/ComfyUI/custom_nodes/ComfyUI-CatVTON
 RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+# Install additional pip packages to handle image processing
+RUN pip install pillow numpy requests
+
 # Fix any potential permissions issues
 WORKDIR /workspace
 RUN chmod -R 755 /workspace/ComfyUI
+RUN chmod -R 755 /workspace/ComfyUI/custom_nodes/ComfyUI-CatVTON
+
+# Copy the client script into the container
+COPY test.py /workspace/
+
+# Copy test images if available
+COPY *.jpg /workspace/ 2>/dev/null || echo "No test images found"
 
 # Return to workspace directory
 WORKDIR /workspace
+
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
+  CMD curl --fail http://localhost:8188/system_stats || exit 1
+
+# Set the entrypoint
+ENTRYPOINT ["/docker-entrypoint.sh"]

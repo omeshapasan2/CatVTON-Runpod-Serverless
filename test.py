@@ -34,6 +34,8 @@ class CatVTONClient:
     
     def base64_to_image(self, base64_string):
         """Convert a base64 string back to a PIL Image."""
+        if "," in base64_string:
+            base64_string = base64_string.split(",", 1)[1]
         image_data = base64.b64decode(base64_string)
         return Image.open(io.BytesIO(image_data))
     
@@ -48,23 +50,23 @@ class CatVTONClient:
         # Create a modified workflow with base64 images instead of file paths
         modified_workflow = self.workflow.copy()
         
-        # Find the LoadImage nodes and replace with LoadImageBase64 nodes
+        # Find the LoadImage nodes and update them correctly
         for node in modified_workflow["nodes"]:
             # Target Person node (ID: 10)
             if node["id"] == 10:
-                node["type"] = "LoadImageBase64"
+                # Keep the original type but update values
                 if "widgets_values" in node:
                     node["widgets_values"] = [
-                        self.image_to_base64(person_image_path),
+                        "data:image/jpeg;base64," + self.image_to_base64(person_image_path),
                         "image"
                     ]
             
             # Reference Garment node (ID: 11)
             elif node["id"] == 11:
-                node["type"] = "LoadImageBase64"
+                # Keep the original type but update values
                 if "widgets_values" in node:
                     node["widgets_values"] = [
-                        self.image_to_base64(garment_image_path),
+                        "data:image/jpeg;base64," + self.image_to_base64(garment_image_path),
                         "image"
                     ]
         
@@ -87,14 +89,8 @@ class CatVTONClient:
         # Prepare the request payload
         payload = {
             "input": {
-                "prompt": {
-                    "workflow": modified_workflow,
-                    "outputs": {
-                        "images": [
-                            {"node_id": 18, "field_name": "images"}  # Final output node
-                        ]
-                    }
-                }
+                "workflow": modified_workflow,  # Pass the entire workflow
+                "output_node_ids": [18]  # Specify the output node ID directly
             }
         }
         
@@ -174,13 +170,9 @@ class CatVTONClient:
         result = self.wait_for_completion(job_id)
         
         # Process the result
-        if result and "images" in result and result["images"]:
+        if result and "images" in result:
             # Get the first output image
-            output_image_data = result["images"][0]["image"]
-            
-            # Remove header if present
-            if "," in output_image_data:
-                output_image_data = output_image_data.split(",", 1)[1]
+            output_image_data = result["images"][0]
             
             # Convert back from base64 to image
             image = self.base64_to_image(output_image_data)
@@ -202,7 +194,7 @@ if __name__ == "__main__":
     try:
         result_path = client.try_on_garment(
             person_image_path="person.jpg",      # Path to your target person (cat) image
-            garment_image_path="cloth.jpg"  # Path to your reference garment image
+            garment_image_path="cloth.jpg"       # Path to your reference garment image
         )
         
         print(f"Try-on completed! Result saved to: {result_path}")
