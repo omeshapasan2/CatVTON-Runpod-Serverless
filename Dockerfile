@@ -47,9 +47,6 @@ COPY test.py /workspace/
 # Create a directory for test images
 RUN mkdir -p /workspace/test_images
 
-# Handle test images more safely - COPY will fail silently if no jpg files exist
-COPY *.jpg /workspace/test_images/ 2>/dev/null || true
-
 # Return to workspace directory
 WORKDIR /workspace
 
