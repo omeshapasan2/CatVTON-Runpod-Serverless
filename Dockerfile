@@ -44,8 +44,11 @@ RUN chmod -R 755 /workspace/ComfyUI/custom_nodes/ComfyUI-CatVTON
 # Copy the client script into the container
 COPY test.py /workspace/
 
-# Copy test images if available
-COPY *.jpg /workspace/ 2>/dev/null || echo "No test images found"
+# Create a directory for test images
+RUN mkdir -p /workspace/test_images
+
+# Handle test images more safely - COPY will fail silently if no jpg files exist
+COPY *.jpg /workspace/test_images/ 2>/dev/null || true
 
 # Return to workspace directory
 WORKDIR /workspace
