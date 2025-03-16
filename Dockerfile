@@ -1,36 +1,35 @@
-# Use a base image with Python and CUDA
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+FROM timpietruskyblibla/runpod-worker-comfy:3.6.0-base
 
-# Set working directory
+# Install dependencies for CatVTON including unzip
 WORKDIR /workspace
-
-# Install required packages
 RUN apt-get update && apt-get install -y \
-    git \
-    python3 \
-    python3-pip \
+    python3-opencv \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    unzip \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Install RunPod Python SDK
-RUN pip3 install runpod pillow requests gradio-client
+# Download and extract ComfyUI-CatVTON
+WORKDIR /workspace/ComfyUI/custom_nodes
+RUN wget https://github.com/Zheng-Chong/CatVTON/releases/download/ComfyUI/ComfyUI-CatVTON.zip && \
+    unzip ComfyUI-CatVTON.zip && \
+    rm ComfyUI-CatVTON.zip
 
-# Clone the space repository directly (this is the key change)
-RUN git clone https://huggingface.co/spaces/zhengchong/CatVTON .
+# Create workflows directory if it doesn't exist
+RUN mkdir -p /workspace/ComfyUI/workflows
 
-# Install the requirements
-RUN pip3 install -r requirements.txt
+# Download workflow file
+WORKDIR /workspace/ComfyUI/workflows
+RUN wget https://github.com/Zheng-Chong/CatVTON/releases/download/ComfyUI/catvton_workflow.json
 
-# Copy our handler file
-COPY handler.py /workspace/handler.py
+# Install Python requirements for CatVTON
+WORKDIR /workspace/ComfyUI/custom_nodes/ComfyUI-CatVTON
+RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
+# Fix any potential permissions issues
+WORKDIR /workspace
+RUN chmod -R 755 /workspace/ComfyUI
 
-ENV HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
-
-# Expose port for Gradio (if needed)
-EXPOSE 7860
-
-# Define the entry point
-CMD ["python3", "-u", "/workspace/handler.py"]
+# Return to workspace directory
+WORKDIR /workspace
