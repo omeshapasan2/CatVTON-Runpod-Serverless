@@ -2,201 +2,172 @@ import requests
 import base64
 import json
 import os
+import argparse
 import time
 from PIL import Image
-import io
+from io import BytesIO
 
-class CatVTONClient:
-    def __init__(self, endpoint_id="Replace_with_your_endpoint_id", api_key="Replace_with_your_runpod_api_key"):
-        """
-        Initialize the CatVTON client.
-        
-        Args:
-            endpoint_id (str): Your RunPod endpoint ID
-            api_key (str): Your RunPod API key
-        """
-        self.endpoint_url = f"https://api.runpod.ai/v2/{endpoint_id}/run"
-        self.status_url = f"https://api.runpod.ai/v2/{endpoint_id}/status"
-        self.api_key = api_key
-        self.headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
+def image_to_base64(image_path):
+    """Convert an image to base64 encoding"""
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
+
+def base64_to_image(base64_string, output_path):
+    """Convert a base64 string to an image and save it"""
+    image_data = base64.b64decode(base64_string)
+    image = Image.open(BytesIO(image_data))
+    image.save(output_path)
+    print(f"Image saved to {output_path}")
+    return image
+
+def load_workflow(json_path="catvton_workflow.json"):
+    """Load the workflow from the JSON file"""
+    with open(json_path, 'r') as f:
+        return json.load(f)
+
+def run_catvton(api_key, endpoint_id, cat_image_path, clothing_image_path, sync=True):
+    """Run the CatVTON workflow on RunPod"""
+    # Load workflow
+    workflow = load_workflow()
+    
+    # Convert images to base64
+    cat_base64 = image_to_base64(cat_image_path)
+    clothing_base64 = image_to_base64(clothing_image_path)
+    
+    # Prepare API request
+    url = f"https://api.runpod.ai/v2/{endpoint_id}/{'runsync' if sync else 'run'}"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    # Create payload
+    payload = {
+        "input": {
+            "workflow": workflow,
+            "images": [
+                {
+                    "name": "cat.png",
+                    "image": cat_base64
+                },
+                {
+                    "name": "clothing.png",
+                    "image": clothing_base64
+                }
+            ]
         }
-        
-        # Load the workflow template
-        with open("catvton_workflow.json", "r") as f:
-            self.workflow = json.load(f)
+    }
     
-    def image_to_base64(self, image_path):
-        """Convert an image file to base64 string."""
-        with open(image_path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode('utf-8')
+    # Send request
+    print(f"Sending request to RunPod endpoint {endpoint_id}...")
+    response = requests.post(url, headers=headers, json=payload)
     
-    def base64_to_image(self, base64_string):
-        """Convert a base64 string back to a PIL Image."""
-        if "," in base64_string:
-            base64_string = base64_string.split(",", 1)[1]
-        image_data = base64.b64decode(base64_string)
-        return Image.open(io.BytesIO(image_data))
-    
-    def update_workflow_with_images(self, person_image_path, garment_image_path):
-        """
-        Update the workflow with the input images.
+    # Handle response
+    if response.status_code == 200:
+        result = response.json()
+        print(f"Request successful! Job ID: {result.get('id')}")
         
-        Args:
-            person_image_path (str): Path to the target person image
-            garment_image_path (str): Path to the reference garment image
-        """
-        # Create a modified workflow with base64 images instead of file paths
-        modified_workflow = self.workflow.copy()
-        
-        # Find the LoadImage nodes and update them correctly
-        for node in modified_workflow["nodes"]:
-            # Target Person node (ID: 10)
-            if node["id"] == 10:
-                # Keep the original type but update values
-                if "widgets_values" in node:
-                    node["widgets_values"] = [
-                        "data:image/jpeg;base64," + self.image_to_base64(person_image_path),
-                        "image"
-                    ]
-            
-            # Reference Garment node (ID: 11)
-            elif node["id"] == 11:
-                # Keep the original type but update values
-                if "widgets_values" in node:
-                    node["widgets_values"] = [
-                        "data:image/jpeg;base64," + self.image_to_base64(garment_image_path),
-                        "image"
-                    ]
-        
-        return modified_workflow
-    
-    def send_request(self, person_image_path, garment_image_path):
-        """
-        Send a request to the RunPod endpoint.
-        
-        Args:
-            person_image_path (str): Path to the target person image
-            garment_image_path (str): Path to the reference garment image
-            
-        Returns:
-            dict: The response from RunPod
-        """
-        # Update workflow with the input images
-        modified_workflow = self.update_workflow_with_images(person_image_path, garment_image_path)
-        
-        # Prepare the request payload
-        payload = {
-            "input": {
-                "workflow": modified_workflow,  # Pass the entire workflow
-                "output_node_ids": [18]  # Specify the output node ID directly
-            }
-        }
-        
-        # Send the request
-        response = requests.post(self.endpoint_url, headers=self.headers, json=payload)
-        return response.json()
-    
-    def check_status(self, job_id):
-        """
-        Check the status of a job.
-        
-        Args:
-            job_id (str): The job ID returned by the RunPod API
-            
-        Returns:
-            dict: The job status
-        """
-        response = requests.get(
-            f"{self.status_url}/{job_id}", 
-            headers=self.headers
-        )
-        return response.json()
-    
-    def wait_for_completion(self, job_id, polling_interval=5, timeout=300):
-        """
-        Wait for a job to complete.
-        
-        Args:
-            job_id (str): The job ID to check
-            polling_interval (int): How often to check the status in seconds
-            timeout (int): Maximum time to wait in seconds
-            
-        Returns:
-            dict: The final job result or None if timeout
-        """
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            status_response = self.check_status(job_id)
-            
-            if status_response.get("status") == "COMPLETED":
-                return status_response.get("output")
-            elif status_response.get("status") == "FAILED":
-                raise Exception(f"Job failed: {status_response}")
-            
-            print(f"Job status: {status_response.get('status')}. Waiting {polling_interval} seconds...")
-            time.sleep(polling_interval)
-        
-        raise TimeoutError(f"Job did not complete within {timeout} seconds")
-    
-    def try_on_garment(self, person_image_path, garment_image_path, output_path="result.png"):
-        """
-        Complete virtual try-on process from start to finish.
-        
-        Args:
-            person_image_path (str): Path to the target person image
-            garment_image_path (str): Path to the reference garment image
-            output_path (str): Where to save the resulting image
-            
-        Returns:
-            str: Path to the output image
-        """
-        # Send the initial request
-        print(f"Sending request with target person: {person_image_path} and garment: {garment_image_path}")
-        response = self.send_request(person_image_path, garment_image_path)
-        
-        if "error" in response:
-            raise Exception(f"Error sending request: {response['error']}")
-        
-        job_id = response.get("id")
-        if not job_id:
-            raise Exception(f"No job ID in response: {response}")
-        
-        print(f"Job submitted successfully! Job ID: {job_id}")
-        print("Waiting for job to complete...")
-        
-        # Wait for the job to complete
-        result = self.wait_for_completion(job_id)
-        
-        # Process the result
-        if result and "images" in result:
-            # Get the first output image
-            output_image_data = result["images"][0]
-            
-            # Convert back from base64 to image
-            image = self.base64_to_image(output_image_data)
-            
-            # Save the image
-            image.save(output_path)
-            print(f"Result saved as {output_path}")
-            return output_path
+        if sync:
+            # If synchronous, we have the result already
+            output_data = result.get('output', {})
+            if output_data.get('status') == 'success':
+                # Check if the result is a URL or base64
+                message = output_data.get('message', '')
+                if message.startswith('http'):
+                    print(f"Generated image URL: {message}")
+                    # Download image from URL
+                    img_response = requests.get(message)
+                    if img_response.status_code == 200:
+                        output_path = "catvton_result.png"
+                        with open(output_path, "wb") as f:
+                            f.write(img_response.content)
+                        print(f"Image downloaded to {output_path}")
+                else:
+                    # Assume it's base64
+                    output_path = "catvton_result.png"
+                    base64_to_image(message, output_path)
+            else:
+                print(f"Error: {output_data.get('message')}")
         else:
-            raise Exception(f"No images in result: {result}")
+            # If asynchronous, we need to poll for the result
+            job_id = result.get('id')
+            print(f"Job submitted (ID: {job_id}). Check status at https://api.runpod.ai/v2/{endpoint_id}/status/{job_id}")
+            
+        return result
+    else:
+        print(f"Error: {response.status_code}")
+        print(response.text)
+        return None
 
-
-# Example usage
-if __name__ == "__main__":
-    # Initialize the client
-    client = CatVTONClient()
+def check_job_status(api_key, endpoint_id, job_id):
+    """Check the status of an asynchronous job"""
+    url = f"https://api.runpod.ai/v2/{endpoint_id}/status/{job_id}"
+    headers = {
+        "Authorization": f"Bearer {api_key}"
+    }
     
-    # Perform virtual try-on
-    try:
-        result_path = client.try_on_garment(
-            person_image_path="person.jpg",      # Path to your target person (cat) image
-            garment_image_path="cloth.jpg"       # Path to your reference garment image
-        )
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error checking status: {response.status_code}")
+        print(response.text)
+        return None
+
+def poll_until_complete(api_key, endpoint_id, job_id, interval=5, max_attempts=60):
+    """Poll the job status until it completes or fails"""
+    attempts = 0
+    while attempts < max_attempts:
+        status_data = check_job_status(api_key, endpoint_id, job_id)
+        if not status_data:
+            return None
         
-        print(f"Try-on completed! Result saved to: {result_path}")
-    except Exception as e:
-        print(f"Error during try-on process: {e}")
+        status = status_data.get('status')
+        if status == 'COMPLETED':
+            output_data = status_data.get('output', {})
+            if output_data.get('status') == 'success':
+                message = output_data.get('message', '')
+                if message.startswith('http'):
+                    print(f"Generated image URL: {message}")
+                    # Download image from URL
+                    img_response = requests.get(message)
+                    if img_response.status_code == 200:
+                        output_path = "catvton_result.png"
+                        with open(output_path, "wb") as f:
+                            f.write(img_response.content)
+                        print(f"Image downloaded to {output_path}")
+                else:
+                    # Assume it's base64
+                    output_path = "catvton_result.png"
+                    base64_to_image(message, output_path)
+            return status_data
+        elif status == 'FAILED':
+            print(f"Job failed: {status_data.get('error')}")
+            return status_data
+        
+        print(f"Job status: {status}, waiting {interval} seconds...")
+        time.sleep(interval)
+        attempts += 1
+    
+    print(f"Reached maximum polling attempts ({max_attempts})")
+    return None
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run CatVTON on RunPod")
+    parser.add_argument("--api_key", help="RunPod API key", required=True)
+    parser.add_argument("--endpoint_id", help="RunPod endpoint ID", required=True)
+    parser.add_argument("--cat", help="Path to cat image", required=True)
+    parser.add_argument("--clothing", help="Path to clothing image", required=True)
+    parser.add_argument("--async", dest="async_mode", action="store_true", help="Run in asynchronous mode")
+    
+    args = parser.parse_args()
+    
+    if args.async_mode:
+        # Run asynchronously
+        result = run_catvton(args.api_key, args.endpoint_id, args.cat, args.clothing, sync=False)
+        if result and 'id' in result:
+            job_id = result['id']
+            poll_until_complete(args.api_key, args.endpoint_id, job_id)
+    else:
+        # Run synchronously
+        run_catvton(args.api_key, args.endpoint_id, args.cat, args.clothing, sync=True)
