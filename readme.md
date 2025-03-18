@@ -1,6 +1,6 @@
 # CatVTON-Runpod-Serverless
 
-This repository provides a serverless implementation of [CatVTON](https://github.com/Zheng-Chong/CatVTON) using [RunPod](https://www.runpod.io/). The containerized application runs on a GPU-enabled serverless endpoint and processes image inputs for virtual try-on with cats.
+This repository provides a serverless implementation of [CatVTON](https://github.com/Zheng-Chong/CatVTON) using [RunPod](https://www.runpod.io/). The containerized application runs on a GPU-enabled serverless endpoint and processes image inputs for virtual try-on.
 
 ## 🚀 Setup Instructions
 
@@ -32,18 +32,18 @@ Once your endpoint is active, you can send requests using `test.py`.
 ### Required Parameters:
 - `--api_key` → Your RunPod API Key
 - `--endpoint_id` → Your RunPod Endpoint ID
-- `--cat` → Path to the cat image
+- `--person` → Path to the person image
 - `--clothing` → Path to the clothing image
 - `--async` → (Optional) Run in async mode
 
 ### Example Usage:
 ```bash
-python test.py --api_key YOUR_RUNPOD_API_KEY --endpoint_id YOUR_ENDPOINT_ID --cat path/to/cat.png --clothing path/to/clothing.png
+python test.py --api_key YOUR_RUNPOD_API_KEY --endpoint_id YOUR_ENDPOINT_ID --person path/to/person.png --clothing path/to/clothing.png
 ```
 
 To run in **asynchronous mode**, use:
 ```bash
-python test.py --api_key YOUR_RUNPOD_API_KEY --endpoint_id YOUR_ENDPOINT_ID --cat path/to/cat.png --clothing path/to/clothing.png --async
+python test.py --api_key YOUR_RUNPOD_API_KEY --endpoint_id YOUR_ENDPOINT_ID --person path/to/person.png --clothing path/to/clothing.png --async
 ```
 
 ### Expected Output
